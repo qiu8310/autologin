@@ -6,7 +6,7 @@ Autologin any website in browser and get it's cookie back
 ## Installation
 
 ```bash
-npm install -g autologin
+npm install -g @qiu8310/autologin
 ```
 
 ## Usage
