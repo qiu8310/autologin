@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "removeComments": false,
+    "strict": true,
+    "alwaysStrict": true,
+    "experimentalDecorators": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "keyofStringsOnly": true,
+    "module": "CommonJS",
+    "sourceMap": true, // jest coverage 需要 sourceMap 才能准确定位到文件位置
+    "declaration": false,
+    "noEmitOnError": true,
+    "noEmit": true,
+    "lib": ["es2017", "DOM"],
+    "target": "es5",
+    "rootDir": "src",
+    "baseUrl": ".",
+  },
+  "include": ["src", "durka", ".dtpl/dtpl.d.ts"]
+}

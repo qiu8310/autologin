@@ -1,0 +1,66 @@
+{
+  "name": "autologin",
+  "version": "1.0.0",
+  "description": "Autologin any website in browser and get it's cookie back",
+  "bin": {
+    "autologin": "bin"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "*.md"
+  ],
+  "durka": {
+    "env": "node",
+    "commands": {
+      "build": "@durka/rollup-cli@<1.0.0",
+      "jest": "@durka/test-cli@<1.0.0",
+      "eslint": "@durka/lint-cli@<1.0.0"
+    }
+  },
+  "scripts": {
+    "test": "durka jest",
+    "test:watch": "durka jest --watch",
+    "lint": "durka eslint --ext .js,.ts ./src",
+    "lint:fix": "npm run lint -- --fix",
+    "build": "durka build",
+    "build:sourcemap": "npm run build -- --sourcemap",
+    "build:watch": "npm run build -- -w",
+    "check": "npm run lint && npm run test",
+    "prepare": "npm run check && npm run build",
+    "preversion": "npm run check",
+    "postversion": "npm run build && npm publish && git push"
+  },
+  "engineStrict": true,
+  "engines": {
+    "node": ">=12",
+    "npm": ">=6.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "author": "Mora <qiuzhongleiabc@126.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@durka/cli": "latest",
+    "@serpent/common-cli": "^1.2.12",
+    "@types/node": "^12.20.43",
+    "tslib": "^2.3.1",
+    "typescript": "^4.5.5"
+  },
+  "jest": {
+    "preset": "./durka/vendors/jest-config"
+  },
+  "eslintConfig": {
+    "extends": "./durka/vendors/eslint-config"
+  },
+  "eslintIgnore": [
+    "dist",
+    "durka/*",
+    "!durka/config"
+  ],
+  "dependencies": {
+    "puppeteer": "^13.7.0"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "eslint.nodePath": "./durka/vendors",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true,
+    // "source.organizeImports": true,
+  },
+  "eslint.validate": [
+    "javascript",
+    "typescript",
+  ],
+}
