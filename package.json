@@ -1,6 +1,6 @@
 {
   "name": "@qiu8310/autologin",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Autologin any website in browser and get it's cookie back",
   "bin": {
     "autologin": "bin"
