@@ -1,6 +1,6 @@
 # autologin
 
-Autologin any website in browser and get it's cookie back
+Autologin any website in browser and get it's cookie back, includes `httpOnly` cookies too!
 
 
 ## Installation

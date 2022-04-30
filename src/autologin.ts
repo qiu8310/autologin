@@ -6,6 +6,26 @@ export interface AutologinOptions {
   executablePath?: string
   /** Whether to auto-open a DevTools panel for each tab. If this is set to true, then headless will be forced to false. */
   devtools?: boolean
+  /** Additional arguments to pass to the browser instance */
+  args?: string[]
+  /** Path to a user data directory */
+  userDataDir?: string;
+
+  /** 显示 json 版格式的 cookies，会展示 cookie 中的各类信息，如域名，是否是 httpOnly 等等 */
+  json?: boolean
+  /** 显示 python dict 格式的 cookies */
+  dict?: boolean
+  /** 指定要显示的 cookie 的键值 */
+  cookies?: string[]
+
+  /** 获取指定域名的 cookie */
+  domain?: string
+  /** 获取指定路径的 cookie */
+  path?: string
+  /** 获取 httpOnly 的 cookie */
+  httpOnly?: boolean
+  /** 获取 session 的 cookie */
+  session?: boolean
 
   /** 指定要模拟的设备名称，设备名称参考这里： https://github.com/puppeteer/puppeteer/blob/main/src/common/DeviceDescriptors.ts */
   device?: string
@@ -37,35 +57,54 @@ export async function autologin(url: string, options: AutologinOptions = {}) {
   if (options.width) device.viewport.width = options.width
   if (options.height) device.viewport.height = options.height
   if (options.dpr) device.viewport.deviceScaleFactor = options.dpr
-
   const browser = await puppeteer.launch({
+    userDataDir:     options.userDataDir,
     executablePath:  options.executablePath,
     devtools:        options.devtools,
+    args:            options.args,
     defaultViewport: device.viewport,
     headless:        false,
   })
 
   const page = (await browser.pages())[0] || browser.newPage()
-  page.emulate(device)
-
-  page.goto(url)
-
-
-  const closeBrowser = async() => {
-    const cookie = await page.evaluate(() => {
-      return document.cookie
-    })
-
-    console.log(cookie)
-
-    return browser.close()
-  }
 
   // 暴露一个方法到页面中
-  page.exposeFunction('__finishAutologin', closeBrowser)
+  await page.exposeFunction('__finishAutologin', closeBrowser)
 
   // 每次页面加载完成都注入一个关闭按钮
   page.on('domcontentloaded', () => page.evaluate(injectCloseButton))
+
+  await page.emulate(device)
+  await page.goto(url)
+
+  async function closeBrowser() {
+    const client = await page.target().createCDPSession()
+
+    let { cookies } = await client.send('Network.getAllCookies')
+
+    cookies = cookies.filter(c => {
+      if (options.cookies?.length && !options.cookies?.includes(c.name)) return false
+      if (options.domain != null && c.domain !== options.domain) return false
+      if (options.httpOnly != null && c.httpOnly !== options.httpOnly) return false
+      if (options.session != null && c.session !== options.session) return false
+      if (options.path != null && c.path !== options.path) return false
+      return true
+    })
+    if (options.dict) {
+      const s = (str: string) => JSON.stringify(str)
+      console.log(`{${cookies.map(c => `${s(c.name)}: ${s(c.value)}`).join(', ')}}`)
+    } else if (options.json) {
+      console.log(cookies)
+    } else {
+      console.log(cookies.map(c => `${c.name}=${c.value}`).join('; '))
+    }
+
+    page.removeAllListeners()
+    await page.close()
+
+    browser.removeAllListeners()
+    return browser.close()
+  }
 }
 
 function injectCloseButton() {
