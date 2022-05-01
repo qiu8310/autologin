@@ -1,6 +1,23 @@
 /* eslint-disable max-len */
 import puppeteer from 'puppeteer'
 
+type Launch = typeof puppeteer['launch']
+type PageEmulate = puppeteer.Page['emulate']
+type PageGoto = puppeteer.Page['goto']
+interface PluginFnReturn {
+  beforeLaunch?(launchParams: Parameters<Launch>[0]): Promise<Parameters<Launch>[0]>
+  afterLaunch?(browser: puppeteer.Browser): Promise<void>
+
+  beforePageEmulate?(emulateParams: Parameters<PageEmulate>[0], page: puppeteer.Page): Promise<Parameters<PageEmulate>[0]>
+  afterPageEmulate?(page: puppeteer.Page): Promise<void>
+
+  beforePageGoto?(gotoOptions: Parameters<PageGoto>[1], page: puppeteer.Page): Promise<Parameters<PageGoto>[1]>
+  afterPageGoto?(page: puppeteer.Page): Promise<void>
+
+  beforeClose?(page: puppeteer.Page, browser: puppeteer.Browser): Promise<void>
+}
+type PluginFn = (p: typeof puppeteer) => PluginFnReturn
+
 export interface AutologinOptions {
   /** Path to a browser executable to use instead of the bundled Chromium. Note that Puppeteer is only guaranteed to work with the bundled Chromium, so use this setting at your own risk. */
   executablePath?: string
@@ -37,6 +54,11 @@ export interface AutologinOptions {
   height?: number
   /** 要模拟的设备的 [dpr](https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio)，默认为 1 */
   dpr?: number
+
+  /** 是否隐藏关闭按钮，如果不显示，需要自己去调用 window.__finishAutologin() 函数来关闭 */
+  hideCloseButton?: boolean
+
+  plugin?: PluginFn
 }
 
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36'
@@ -57,25 +79,36 @@ export async function autologin(url: string, options: AutologinOptions = {}) {
   if (options.width) device.viewport.width = options.width
   if (options.height) device.viewport.height = options.height
   if (options.dpr) device.viewport.deviceScaleFactor = options.dpr
-  const browser = await puppeteer.launch({
+
+  const hook = getPluginHook(options.plugin)
+
+  const launchParams = await hook('beforeLaunch', [{
     userDataDir:     options.userDataDir,
     executablePath:  options.executablePath,
     devtools:        options.devtools,
     args:            options.args,
     defaultViewport: device.viewport,
     headless:        false,
-  })
+  }])
+  const browser = await puppeteer.launch(launchParams)
+  await hook('afterLaunch', [browser])
 
   const page = (await browser.pages())[0] || browser.newPage()
-
   // 暴露一个方法到页面中
   await page.exposeFunction('__finishAutologin', closeBrowser)
 
   // 每次页面加载完成都注入一个关闭按钮
-  page.on('domcontentloaded', () => page.evaluate(injectCloseButton))
+  if (!options.hideCloseButton) {
+    page.on('domcontentloaded', () => page.evaluate(injectCloseButton))
+  }
 
-  await page.emulate(device)
-  await page.goto(url)
+  const emulateParams = await hook('beforePageEmulate', [ device, page ])
+  await page.emulate(emulateParams)
+  await hook('afterPageEmulate', [page])
+
+  const gotoParams = await hook('beforePageGoto', [ undefined, page ])
+  await page.goto(url, gotoParams)
+  await hook('afterPageGoto', [page])
 
   async function closeBrowser() {
     const client = await page.target().createCDPSession()
@@ -99,10 +132,8 @@ export async function autologin(url: string, options: AutologinOptions = {}) {
       console.log(cookies.map(c => `${c.name}=${c.value}`).join('; '))
     }
 
-    page.removeAllListeners()
+    await hook('beforeClose', [ page, browser ])
     await page.close()
-
-    browser.removeAllListeners()
     return browser.close()
   }
 }
@@ -130,4 +161,17 @@ function injectCloseButton() {
   `
   document.body.appendChild(btn)
   btn.addEventListener('click', (window as any).__finishAutologin)
+}
+
+function getPluginHook(pluginFn?: PluginFn) {
+  const fn = pluginFn && (pluginFn as any).default ? (pluginFn as any).default : pluginFn
+  const plugin: ReturnType<PluginFn> = fn ? fn(puppeteer) : {}
+
+  return <T extends keyof PluginFnReturn>(hook: T, args: Parameters<Required<PluginFnReturn>[T]>) => {
+    const fn = plugin[hook]
+    if (typeof fn === 'function') {
+      return (fn as any)(...args) as ReturnType<Required<PluginFnReturn>[T]>
+    }
+    return args[0] as ReturnType<Required<PluginFnReturn>[T]>
+  }
 }

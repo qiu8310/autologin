@@ -1,4 +1,6 @@
 /* eslint-disable max-len */
+import path from 'path'
+import fs from 'fs'
 import { cmd, opt, env } from '@serpent/common-cli/lib/cmder'
 import { COMMAND_KEY } from 'src/config'
 import { autologin } from '../autologin'
@@ -9,9 +11,19 @@ export default cmd(
     version: '__BUILD_VERSION__',
     desc:    [
       'Examples:',
-      '',
       `$ ${COMMAND_KEY} --args="--auto-open-devtools-for-tabs" http://github.com/`,
       `$ ${COMMAND_KEY} --args="--ash-host-window-bounds=1500x1000" http://github.com/`,
+      '',
+      'Plugin:',
+      '(p: typeof puppeteer) => {',
+      '  beforeLaunch?(launchParams: Parameters<Launch>[0]): Promise<Parameters<Launch>[0]>',
+      '  afterLaunch?(browser: puppeteer.Browser): Promise<void>',
+      '  beforePageEmulate?(emulateParams: Parameters<PageEmulate>[0], page: puppeteer.Page): Promise<Parameters<PageEmulate>[0]>',
+      '  afterPageEmulate?(page: puppeteer.Page): Promise<void>',
+      '  beforePageGoto?(gotoOptions: Parameters<PageGoto>[1], page: puppeteer.Page): Promise<Parameters<PageGoto>[1]>',
+      '  afterPageGoto?(page: puppeteer.Page): Promise<void>',
+      '  beforeClose?(page: puppeteer.Page, browser: puppeteer.Browser): Promise<void>',
+      '}',
     ],
     // 选项
     options: {
@@ -33,10 +45,13 @@ export default cmd(
       path:     opt('string', '[View] Get cookies from specified path'),
       httpOnly: opt('boolean', '[View] Get httpOnly cookies'),
       session:  opt('boolean', '[View] Get session cookies'),
+
+      hideCloseButton: opt('boolean', '[Others] Do not show close button on browser'),
+      plugin:          opt('string', '[Others] Plugin file'),
     },
     env: {
-      AUTOLOGIN_CHROMIUM_EXECUTABLE_PATH: env('string', 'Specify chromium executable path for puppeteer'),
-      AUTOLOGIN_CHROMIUM_USER_DATA_DIR:   env('string', 'Path to a user data directory'),
+      AUTOLOGIN_CHROMIUM_EXECUTABLE_PATH: env('string', 'Same with `executablePath` option, used in environment'),
+      AUTOLOGIN_CHROMIUM_USER_DATA_DIR:   env('string', 'Same with `userDataDir` option, used in environment'),
     },
     // 子命令
     commands: {
@@ -65,10 +80,16 @@ export default cmd(
       cookies:        ctx.options.cookies ? ctx.options.cookies.split(',') : [],
       userDataDir:    ctx.options.userDataDir || ctx.env.AUTOLOGIN_CHROMIUM_USER_DATA_DIR || undefined,
       executablePath: ctx.options.executablePath || ctx.env.AUTOLOGIN_CHROMIUM_EXECUTABLE_PATH || undefined,
+      plugin:         ctx.options.plugin ? loadPlugin(ctx.options.plugin) : undefined,
     })
   },
 )
 
 function load(key: string) {
   return (...args: any[]) => require(key)(...args)
+}
+function loadPlugin(pluginFile: string) {
+  const file = path.resolve(pluginFile)
+  if (fs.existsSync(file)) return require(file)
+  return require(pluginFile)
 }
