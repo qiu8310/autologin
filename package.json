@@ -1,6 +1,6 @@
 {
   "name": "@qiu8310/autologin",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Autologin any website in browser and get it's cookie back",
   "bin": {
     "autologin": "bin.mjs"
@@ -63,5 +63,9 @@
   ],
   "dependencies": {
     "puppeteer": "^13.7.0"
+  },
+  "repository": {
+    "type": "git",
+    "repository": "git@github.com:qiu8310/autologin.git"
   }
 }

@@ -1,3 +1,12 @@
+## [1.2.1](https://github.com/qiu8310/autologin/compare/v1.2.0...v1.2.1) (2023-03-02)
+
+
+### Features
+
+* add cache option ([f01b113](https://github.com/qiu8310/autologin/commit/f01b113c030c796e16afd47745266ae84cd10955))
+
+
+
 <!--
 https://keepachangelog.com/en/1.0.0/
 
