@@ -64,78 +64,84 @@ export interface AutologinOptions {
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36'
 
 export async function autologin(url: string, options: AutologinOptions = {}) {
-  const presetDevice = options.device ? puppeteer.devices[options.device] : undefined
-  const device = {
-    userAgent: DEFAULT_USER_AGENT,
-    ...presetDevice,
-    viewport:  {
-      width:             1200,
-      height:            800,
-      deviceScaleFactor: 1,
-      ...presetDevice?.viewport,
-    },
-  }
-  if (options.userAgent) device.userAgent = options.userAgent
-  if (options.width) device.viewport.width = options.width
-  if (options.height) device.viewport.height = options.height
-  if (options.dpr) device.viewport.deviceScaleFactor = options.dpr
+  /* eslint-disable no-async-promise-executor */
+  return new Promise<any>(async(resolve) => {
+    const presetDevice = options.device ? puppeteer.devices[options.device] : undefined
+    const device = {
+      userAgent: DEFAULT_USER_AGENT,
+      ...presetDevice,
+      viewport:  {
+        width:             1200,
+        height:            800,
+        deviceScaleFactor: 1,
+        ...presetDevice?.viewport,
+      },
+    }
+    if (options.userAgent) device.userAgent = options.userAgent
+    if (options.width) device.viewport.width = options.width
+    if (options.height) device.viewport.height = options.height
+    if (options.dpr) device.viewport.deviceScaleFactor = options.dpr
 
-  const hook = getPluginHook(options.plugin)
+    const hook = getPluginHook(options.plugin)
 
-  const launchParams = await hook('beforeLaunch', [{
-    userDataDir:     options.userDataDir,
-    executablePath:  options.executablePath,
-    devtools:        options.devtools,
-    args:            options.args,
-    defaultViewport: device.viewport,
-    headless:        false,
-  }])
-  const browser = await puppeteer.launch(launchParams)
-  await hook('afterLaunch', [browser])
+    const launchParams = await hook('beforeLaunch', [{
+      userDataDir:     options.userDataDir,
+      executablePath:  options.executablePath,
+      devtools:        options.devtools,
+      args:            options.args,
+      defaultViewport: device.viewport,
+      headless:        false,
+    }])
+    const browser = await puppeteer.launch(launchParams)
+    await hook('afterLaunch', [browser])
 
-  const page = (await browser.pages())[0] || browser.newPage()
-  // 暴露一个方法到页面中
-  await page.exposeFunction('__finishAutologin', closeBrowser)
+    const page = (await browser.pages())[0] || browser.newPage()
+    // 暴露一个方法到页面中
+    await page.exposeFunction('__finishAutologin', closeBrowser)
 
-  // 每次页面加载完成都注入一个关闭按钮
-  if (!options.hideCloseButton) {
-    page.on('domcontentloaded', () => page.evaluate(injectCloseButton))
-  }
-
-  const emulateParams = await hook('beforePageEmulate', [ device, page ])
-  await page.emulate(emulateParams)
-  await hook('afterPageEmulate', [page])
-
-  const gotoParams = await hook('beforePageGoto', [ undefined, page ])
-  await page.goto(url, gotoParams)
-  await hook('afterPageGoto', [page])
-
-  async function closeBrowser() {
-    const client = await page.target().createCDPSession()
-
-    let { cookies } = await client.send('Network.getAllCookies')
-
-    cookies = cookies.filter(c => {
-      if (options.cookies?.length && !options.cookies?.includes(c.name)) return false
-      if (options.domain != null && c.domain !== options.domain) return false
-      if (options.httpOnly != null && c.httpOnly !== options.httpOnly) return false
-      if (options.session != null && c.session !== options.session) return false
-      if (options.path != null && c.path !== options.path) return false
-      return true
-    })
-    if (options.dict) {
-      const s = (str: string) => JSON.stringify(str)
-      console.log(`{${cookies.map(c => `${s(c.name)}: ${s(c.value)}`).join(', ')}}`)
-    } else if (options.json) {
-      console.log(cookies)
-    } else {
-      console.log(cookies.map(c => `${c.name}=${c.value}`).join('; '))
+    // 每次页面加载完成都注入一个关闭按钮
+    if (!options.hideCloseButton) {
+      page.on('domcontentloaded', () => page.evaluate(injectCloseButton))
     }
 
-    await hook('beforeClose', [ page, browser ])
-    await page.close()
-    return browser.close()
-  }
+    const emulateParams = await hook('beforePageEmulate', [ device, page ])
+    await page.emulate(emulateParams)
+    await hook('afterPageEmulate', [page])
+
+    const gotoParams = await hook('beforePageGoto', [ undefined, page ])
+    await page.goto(url, gotoParams)
+    await hook('afterPageGoto', [page])
+
+    async function closeBrowser() {
+      const client = await page.target().createCDPSession()
+
+      let { cookies } = await client.send('Network.getAllCookies')
+
+      cookies = cookies.filter(c => {
+        if (options.cookies?.length && !options.cookies?.includes(c.name)) return false
+        if (options.domain != null && c.domain !== options.domain) return false
+        if (options.httpOnly != null && c.httpOnly !== options.httpOnly) return false
+        if (options.session != null && c.session !== options.session) return false
+        if (options.path != null && c.path !== options.path) return false
+        return true
+      })
+
+      let result: any
+      if (options.dict) {
+        const s = (str: string) => JSON.stringify(str)
+        result = `{${cookies.map(c => `${s(c.name)}: ${s(c.value)}`).join(', ')}}`
+      } else if (options.json) {
+        result = cookies
+      } else {
+        result = cookies.map(c => `${c.name}=${c.value}`).join('; ')
+      }
+
+      await hook('beforeClose', [ page, browser ])
+      await page.close()
+      await browser.close()
+      resolve(result)
+    }
+  })
 }
 
 function injectCloseButton() {

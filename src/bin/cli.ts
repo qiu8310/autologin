@@ -1,18 +1,19 @@
 /* eslint-disable max-len */
 import path from 'path'
 import fs from 'fs'
-import { cmd, opt, env } from '@serpent/common-cli/lib/cmder'
-import { COMMAND_KEY } from 'src/config'
-import { autologin } from '../autologin'
+import { cmd, opt, env } from '@serpent/common-cli/cmder'
+import { COMMAND } from 'src/util/constant.js'
+import { autologin } from '../autologin.js'
+import { cache } from 'src/util/cache.js'
 
 export default cmd(
   {
-    usage:   `${COMMAND_KEY} <someLink>`,
+    usage:   `${COMMAND} <someLink>`,
     version: '__BUILD_VERSION__',
     desc:    [
       'Examples:',
-      `$ ${COMMAND_KEY} --args="--auto-open-devtools-for-tabs" http://github.com/`,
-      `$ ${COMMAND_KEY} --args="--ash-host-window-bounds=1500x1000" http://github.com/`,
+      `$ ${COMMAND} --args="--auto-open-devtools-for-tabs" http://github.com/`,
+      `$ ${COMMAND} --args="--ash-host-window-bounds=1500x1000" http://github.com/`,
       '',
       'Plugin:',
       '(p: typeof puppeteer) => {',
@@ -38,6 +39,7 @@ export default cmd(
       height:    opt('number', '[Emulate] Page height, default 800'),
       dpr:       opt('number', '[Emulate] Device pixel ration, default 1'),
 
+      cache:    opt('string', '[View] Cache cookies, for example cache one day: "--cache 1d"'),
       json:     opt('boolean', '[View] Show json result, for example `[{ "name": "a", "value": "aaa", path: "/", ... }]`'),
       dict:     opt('boolean', '[View] Show dict result, for example `{"a": "aaa"}`'),
       cookies:  opt('string', '[View] <cookie | c> Specify cookie keys that you want to view, use "," to join multiple cookie keys'),
@@ -73,14 +75,19 @@ export default cmd(
     const url = ctx.args[0]
     if (!url) return ctx.help()
 
-    autologin(url, {
-      ...ctx.options,
-      httpOnly:       ctx.userDefinedOptions.httpOnly ? ctx.options.httpOnly : undefined,
-      session:        ctx.userDefinedOptions.session ? ctx.options.session : undefined,
-      cookies:        ctx.options.cookies ? ctx.options.cookies.split(',') : [],
-      userDataDir:    ctx.options.userDataDir || ctx.env.AUTOLOGIN_CHROMIUM_USER_DATA_DIR || undefined,
-      executablePath: ctx.options.executablePath || ctx.env.AUTOLOGIN_CHROMIUM_EXECUTABLE_PATH || undefined,
-      plugin:         ctx.options.plugin ? loadPlugin(ctx.options.plugin) : undefined,
+    const { cache: timeString, ...opts } = ctx.options
+    const run = () => autologin(url, {
+      ...opts,
+      httpOnly:       ctx.userDefinedOptions.httpOnly ? opts.httpOnly : undefined,
+      session:        ctx.userDefinedOptions.session ? opts.session : undefined,
+      cookies:        opts.cookies ? opts.cookies.split(',') : [],
+      userDataDir:    opts.userDataDir || ctx.env.AUTOLOGIN_CHROMIUM_USER_DATA_DIR || undefined,
+      executablePath: opts.executablePath || ctx.env.AUTOLOGIN_CHROMIUM_EXECUTABLE_PATH || undefined,
+      plugin:         opts.plugin ? loadPlugin(opts.plugin) : undefined,
+    })
+
+    return (timeString ? cache(url, run, timeString) : run()).then(result => {
+      console.log(result) // 输出结果
     })
   },
 )

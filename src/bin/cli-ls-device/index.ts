@@ -1,11 +1,11 @@
 import puppeteer from 'puppeteer'
-import { cmd, opt } from '@serpent/common-cli/lib/cmder'
-import { logger } from '@serpent/common-cli/lib/logger'
-import { COMMAND_KEY } from 'src/config'
+import { cmd, opt } from '@serpent/common-cli/cmder'
+import { logger } from '@serpent/common-cli/logger'
+import { COMMAND } from 'src/util/constant.js'
 
 export default cmd(
   {
-    usage:   `${COMMAND_KEY} ls-device [search]`,
+    usage:   `${COMMAND} ls-device [search]`,
     options: {
       ua: opt('boolean', '显示 userAgent 信息'),
     },

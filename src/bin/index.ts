@@ -1,4 +1,5 @@
-import { runCliWithDebug } from '@serpent/common-cli/lib/run'
+import { runCliWithDebug } from '@serpent/common-cli/run'
+import cli from './cli.js'
 
 // 添加 DURKA_NODE_DEBUG 环境变量可以启动调试模式
-runCliWithDebug(require('./cli'), require.resolve(__filename))
+runCliWithDebug(cli, import.meta.url)

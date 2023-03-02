@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
     "importHelpers": true,
     "removeComments": false,
     "strict": true,
@@ -11,7 +12,6 @@
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "keyofStringsOnly": true,
-    "module": "CommonJS",
     "sourceMap": true, // jest coverage 需要 sourceMap 才能准确定位到文件位置
     "declaration": false,
     "noEmitOnError": true,
